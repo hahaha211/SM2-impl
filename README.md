@@ -19,4 +19,13 @@
 7. 输出明文M'。
 
 # 获取公私钥
+
 ![image](https://user-images.githubusercontent.com/71619888/181879727-2f0846d1-cbf0-4da9-bbed-f9bf165afca1.png)
+
+# 代码分析
+
+代码依照加解密流程逐步完善，细节请见代码注释。
+
+# 实验结果
+
+![KA3)S2)W2MSB3J @{BEEE43](https://user-images.githubusercontent.com/71619888/181902975-6feb5b6a-4fe4-49c6-baa2-f33d559dfc2f.png)
