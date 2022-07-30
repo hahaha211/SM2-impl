@@ -3,7 +3,7 @@ from random import SystemRandom
 from base64 import b64encode, b64decode
 
 #定义椭圆曲线
-class elliptic_curve:
+class EllCurve:
 	def __init__(self, A, B, P, N, Gx, Gy, name):
 		self.A = A
 		self.B = B
@@ -15,7 +15,7 @@ class elliptic_curve:
 
 
 #初始化常量，选取SM2椭圆曲线公钥密码算法推荐曲线参数
-sm2_class = elliptic_curve(
+sm2_class = EllCurve(
 	name="sm2_class",
 	A=0xFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC,
 	B=0x28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93,
@@ -28,19 +28,17 @@ sm2_class = elliptic_curve(
 
 #加解密过程中的主要函数
 
-def add(a, b, A, P):
-	return curve_exchange(curve_add(curve_one(a), curve_one(b), A, P), P)
 
-def multiply(a, n, N, A, P):
-	return curve_exchange(curve_mul(curve_one(a), n, N, A, P), P)
+def mul(a, n, N, A, P):
+	return CurveExc(CurveMul(CurveOne(a), n, N, A, P), P)
 
 
+#返回值res=(n,n,1)
+def CurveOne(n):
+	x, y = n
+	return (x, y, 1)
 
-def curve_one(Xp_Yp):
-	Xp, Yp = Xp_Yp
-	return (Xp, Yp, 1)
-
-def curve_inv(a, n):
+def CurveInv(a, n):
 	if a == 0:
 		return 0
 	lm, hm = 1, 0
@@ -51,14 +49,15 @@ def curve_inv(a, n):
 		lm, low, hm, high = nm, new, lm, low
 	return lm % n
 
-def curve_exchange(Xp_Yp_Zp, P):
-	Xp, Yp, Zp = Xp_Yp_Zp
-	z = curve_inv(Zp, P)
-	return ((Xp * z**2) % P, (Yp * z**3) % P)
+def CurveExc(n, P):
+	X, Y, Z = n
+	z = CurveInv(Z, P)
+	return ((X * z**2) % P, (Y * z**3) % P)
 
-def curve_add(Xp_Yp_Zp, Xq_Yq_Zq, A, P):
-	Xp, Yp, Zp = Xp_Yp_Zp
-	Xq, Yq, Zq = Xq_Yq_Zq
+#曲线点加
+def CurveAdd(m, n, A, P):
+	Xp, Yp, Zp = m
+	Xq, Yq, Zq = n
 	if not Yp:
 		return (Xq, Yq, Zq)
 	if not Yq:
@@ -70,7 +69,7 @@ def curve_add(Xp_Yp_Zp, Xq_Yq_Zq, A, P):
 	if U1 == U2:
 		if S1 != S2:
 			return (0, 0, 1)
-		return curve_math((Xp, Yp, Zp), A, P)
+		return CurveMath((Xp, Yp, Zp), A, P)
 	H = U2 - U1
 	R = S2 - S1
 	H2 = (H * H) % P
@@ -81,29 +80,31 @@ def curve_add(Xp_Yp_Zp, Xq_Yq_Zq, A, P):
 	nz = (H * Zp * Zq) % P
 	return (nx, ny, nz)
 
-def curve_mul(Xp_Yp_Zp, n, N, A, P):
-	Xp, Yp, Zp = Xp_Yp_Zp
-	if Yp == 0 or n == 0:
+#曲线点乘
+def CurveMul(m, n, N, A, P):
+	X, Y, Z = m
+	if Y == 0 or n == 0:
 		return (0, 0, 1)
 	if n == 1:
-		return (Xp, Yp, Zp)
+		return (X, Y, Z)
 	if n < 0 or n >= N:
-		return curve_mul((Xp, Yp, Zp), n % N, N, A, P)
+		return CurveMul((X, Y, Z), n % N, N, A, P)
 	if (n % 2) == 0:
-		return curve_math(curve_mul((Xp, Yp, Zp), n // 2, N, A, P), A, P)
+		return CurveMath(CurveMul((X, Y, Z), n // 2, N, A, P), A, P)
 	if (n % 2) == 1:
-		return curve_add(curve_math(curve_mul((Xp, Yp, Zp), n // 2, N, A, P), A, P), (Xp, Yp, Zp), A, P)
+		return CurveAdd(CurveMath(CurveMul((X, Y, Z), n // 2, N, A, P), A, P), (X, Y, Z), A, P)
 
-def curve_math(Xp_Yp_Zp, A, P):
-	Xp, Yp, Zp = Xp_Yp_Zp
-	if not Yp:
+
+def CurveMath(n, A, P):
+	X, Y, Z = n
+	if not Y:
 		return (0, 0, 0)
-	ysq = (Yp ** 2) % P
-	S = (4 * Xp * ysq) % P
-	M = (3 * Xp ** 2 + A * Zp ** 4) % P
+	ysq = (Y ** 2) % P
+	S = (4 * X * ysq) % P
+	M = (3 * X ** 2 + A * Z ** 4) % P
 	nx = (M**2 - 2 * S) % P
 	ny = (M * (S - nx) - 8 * ysq ** 2) % P
-	nz = (2 * Yp * Zp) % P
+	nz = (2 * Y * Z) % P
 	return (nx, ny, nz)
 
 
@@ -128,7 +129,7 @@ class SK:
 
 	def publicKey(self):
 		curve = self.curve
-		xPublicKey, yPublicKey = multiply((curve.Gx, curve.Gy), self.secret, A=curve.A, P=curve.P, N=curve.N)
+		xPublicKey, yPublicKey = mul((curve.Gx, curve.Gy), self.secret, A=curve.A, P=curve.P, N=curve.N)
 		return PK(xPublicKey, yPublicKey, curve)
 
 	def tostring(self):
@@ -141,13 +142,11 @@ pubKey = priKey.publicKey()
 
 #定义SM2加解密（借用base64完成相应进制转化工作）
 class sm2_1:
-    # 加密
     def encrypt(self, info):
         encode_info = sm2_crypt.encrypt(info.encode(encoding="utf-8"))
         encode_info = b64encode(encode_info).decode()  
         return encode_info
 
-    # 解密
     def decrypt(self, info):
         decode_info = b64decode(info.encode())
         decode_info = sm2_crypt.decrypt(decode_info).decode(encoding="utf-8")
